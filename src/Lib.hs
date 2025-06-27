@@ -64,9 +64,11 @@ data Proof
   | Evidence Predicate
   deriving (Show)
 
--- Complete this instance definition. AI!
 instance Disp Proof where
-  disp = _
+  disp = \case
+    ViaParent parentType proof -> "Via " <> disp parentType <> ": " <> disp proof
+    And proof1 proof2 -> disp proof1 <> " AND " <> disp proof2
+    Evidence predicate -> disp predicate
 
 type Claims = Set Predicate
 
