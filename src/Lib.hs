@@ -166,7 +166,8 @@ settled p = askRequired (Settled p)
 run :: M Proof -> IO ()
 run m = do
   res <- evalStateT (observeAllT m) Set.empty
-  pPrint res
+  putStrLn $ "Applicant has " <> show (length res) <> " proofs of britishness:"
+  forM_ res $ \r -> putStrLn (disp r)
 
 -- docs :: Predicate -> Logic DocumentType
 -- docs = \case
