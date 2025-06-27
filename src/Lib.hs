@@ -65,6 +65,7 @@ data Proof
   deriving (Show)
 
 instance Disp Proof where
+  -- modify this display function. For `ViaParent`, the `disp proof` should be on the next line, indented with 4 spaces. AI!
   disp = \case
     ViaParent parentType proof -> "Via " <> disp parentType <> ": " <> disp proof
     And proof1 proof2 -> disp proof1 <> " AND " <> disp proof2
