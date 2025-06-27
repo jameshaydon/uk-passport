@@ -1,5 +1,18 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- | British citizenship determination system
+--
+-- This module implements the logic for determining British citizenship eligibility
+-- based on UK nationality law. It handles various scenarios including:
+--
+-- * Birth in the UK before/after 1983
+-- * Birth abroad with British parents
+-- * Naturalization
+-- * Settlement status
+-- * Parental citizenship transmission
+--
+-- The system generates proofs of citizenship and determines what documents
+-- are required to support each proof.
 module Lib (brit, run) where
 
 import Control.Applicative
@@ -92,10 +105,13 @@ instance Disp Proof where
 
 type Claims = Set Predicate
 
+-- | Monad for citizenship determination with backtracking and state
 type M a = LogicT (StateT Claims IO) a
 
+-- | Response to a question about a predicate
 data Knowledge = SureYes | SureNo | Unsure
 
+-- | Ask a question about a predicate and get user input
 ask :: Predicate -> M Knowledge
 ask q = do
   s <- get
@@ -112,6 +128,7 @@ ask q = do
         "n" -> pure SureNo
         _ -> pure Unsure
 
+-- | Check that a predicate is true, failing if the user says no
 check :: Predicate -> M ()
 check q = do
   s <- get
@@ -124,27 +141,45 @@ check q = do
       guard (l == "y")
       modify (Set.insert q)
 
+-- | Determine if a person is British and generate proof
+-- 
+-- This implements the main logic of British citizenship law:
+-- 1. If born in UK, check if before 1983 (automatic) or via parent
+-- 2. If born abroad, check parental citizenship or naturalization
 brit :: Person -> M Proof
 brit p =
   do
     check (IsBritish p)
     cut
       (askRequired (BornInUK p))
-      (askRequired (BornBefore 1983 p) `orElse` britBornInUkViaParent p)
+      (britBornInUk p)
       (britBornAbroad p)
 
+-- | Logic for UK-born citizenship (post-1983 or via parent)
+britBornInUk :: Person -> M Proof  
+britBornInUk p = askRequired (BornBefore 1983 p) `orElse` britBornInUkViaParent p
+
+-- | UK-born citizenship via parent (used for post-1983 births)
 britBornInUkViaParent :: Person -> M Proof
 britBornInUkViaParent p = viaParent p (\parent -> brit parent `orElse` settled parent)
 
+-- | Conditional logic: if condition succeeds, combine with action
 cut :: (MonadLogic m) => m Proof -> m Proof -> m Proof -> m Proof
 cut c a = ifte c (\x -> And x <$> a)
 
+-- | Try first option, fall back to second if first fails
 orElse :: (MonadLogic m) => m a -> m a -> m a
 orElse a = ifte a pure
 
+-- | Require a predicate to be true and return it as evidence
 askRequired :: Predicate -> M Proof
 askRequired p = check p >> pure (Evidence p)
 
+-- | Establish citizenship via a parent's status
+-- 
+-- Handles different rules for maternal vs paternal citizenship:
+-- * Maternal: always available
+-- * Paternal: automatic after 2006, requires marriage before 2006
 viaParent :: Person -> (Person -> M Proof) -> M Proof
 viaParent p cond =
   go Mother
@@ -156,11 +191,21 @@ viaParent p cond =
     go parent = do
       ViaParent (Parent parent p) <$> cond (Parent parent p)
 
+-- | British citizenship for those born abroad
+--
+-- Two main routes:
+-- 1. Parent is British otherwise than by descent (BOTD)
+-- 2. Parent is British and lived in UK for 3+ years
 britBornAbroad :: Person -> M Proof
 britBornAbroad p =
   viaParent p britOtbd
     `orElse` viaParent p (\parent -> brit parent >> askRequired (Years3LivingInUK parent))
 
+-- | British otherwise than by descent (BOTD)
+--
+-- Someone is BOTD if they are:
+-- 1. Born in UK (with same rules as main citizenship)
+-- 2. Naturalized as British citizen
 britOtbd :: Person -> M Proof
 britOtbd p =
   do
@@ -169,19 +214,21 @@ britOtbd p =
       SureNo -> mempty
       _ -> britOtbdUkBorn <|> askRequired (Naturalized p)
   where
-    britOtbdUkBorn =
-      And
-        <$> askRequired (BornInUK p)
-        <*> ( askRequired (BornBefore 1983 p)
-                `orElse` britBornInUkViaParent p
-            )
+    -- Reuse the same UK-born logic as the main brit function
+    britOtbdUkBorn = And <$> askRequired (BornInUK p) <*> britBornInUk p
 
+-- | Establish that two people were married at time of birth
 married :: Person -> Person -> LogicT (StateT Claims IO) Proof
 married p q = askRequired (Married p q)
 
+-- | Establish that a person had settled status at time of birth
 settled :: Person -> M Proof
 settled p = askRequired (Settled p)
 
+-- | Run the citizenship determination and display results
+--
+-- Shows all possible proofs of citizenship and the documents required
+-- for each proof, including unconditionally required documents.
 run :: M Proof -> IO ()
 run m = do
   res <- evalStateT (observeAllT m) Set.empty
@@ -197,6 +244,10 @@ run m = do
   where
     dispDocSet ds = intercalate ", " (disp <$> Set.toList ds)
 
+-- | Generate all possible document sets that could satisfy a proof
+--
+-- For each proof structure, determines what documents would be needed
+-- to provide evidence for all the predicates involved.
 docs :: Proof -> Logic (Set DocumentType)
 docs = \case
   ViaParent (Parent _ p) proof -> (<>) (Set.singleton (BirthCertificate p)) <$> docs proof
