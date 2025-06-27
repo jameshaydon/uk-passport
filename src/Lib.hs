@@ -38,12 +38,17 @@ data Predicate
   | Married Person Person
   deriving (Show, Eq, Ord)
 
--- Complete this instance definition. AI!
 instance Disp Predicate where
   disp = \case
     IsBritish p -> disp p <> " is british"
     Settled p -> disp p <> " was settled at time of birth"
     BornBefore year p -> disp p <> " was born before " <> show year
+    BornInUK p -> disp p <> " was born in UK"
+    BornAfter year p -> disp p <> " was born after " <> show year
+    Naturalized p -> disp p <> " was naturalized"
+    Years3LivingInUK p -> disp p <> " lived in UK for 3+ years"
+    IsBritOtbd p -> disp p <> " is british otherwise than by descent"
+    Married p1 p2 -> disp p1 <> " is married to " <> disp p2
 
 data DocumentType
   = BirthCertificate Person
