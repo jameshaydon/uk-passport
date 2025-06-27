@@ -48,7 +48,7 @@ instance Disp Predicate where
     Naturalized p -> disp p <> " was naturalized"
     Years3LivingInUK p -> disp p <> " lived in UK for 3+ years"
     IsBritOtbd p -> disp p <> " is british otherwise than by descent"
-    Married p1 p2 -> disp p1 <> " is married to " <> disp p2
+    Married p1 p2 -> disp p1 <> " was married to " <> disp p2 <> " at time of birth"
 
 data DocumentType
   = BirthCertificate Person
@@ -64,6 +64,10 @@ data Proof
   | Evidence Predicate
   deriving (Show)
 
+-- Complete this instance definition. AI!
+instance Disp Proof where
+  disp = _
+
 type Claims = Set Predicate
 
 type M a = LogicT (StateT Claims IO) a
@@ -77,7 +81,7 @@ ask q = do
     then pure SureYes
     else do
       l <- liftIO $ do
-        putStrLn ("? : " <> show q)
+        putStrLn ("? : " <> disp q)
         getLine
       case l of
         "y" -> do
@@ -93,7 +97,7 @@ check q = do
     then pure ()
     else do
       l <- liftIO $ do
-        putStrLn ("? : " <> show q)
+        putStrLn ("? : " <> disp q)
         getLine
       guard (l == "y")
       modify (Set.insert q)
@@ -162,11 +166,11 @@ run m = do
   res <- evalStateT (observeAllT m) Set.empty
   pPrint res
 
-docs :: Predicate -> Logic DocumentType
-docs = \case
-  IsParent (Parent _ p) p' | p == p' -> pure (BirthCertificate p)
-  BornInUK p -> pure (BirthCertificate p)
-  _ -> mempty
+-- docs :: Predicate -> Logic DocumentType
+-- docs = \case
+--   IsParent (Parent _ p) p' | p == p' -> pure (BirthCertificate p)
+--   BornInUK p -> pure (BirthCertificate p)
+--   _ -> mempty
 
 {-
 -- British citizenship rules
