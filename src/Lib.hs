@@ -57,6 +57,10 @@ data DocumentType
   | Passport Person
   deriving (Show, Eq, Ord)
 
+-- Implement this. AI!
+instance Disp DocumentType where
+  disp = _
+
 data Proof
   = ViaParent ParentType Proof
   | And Proof Proof
