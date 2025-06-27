@@ -181,7 +181,23 @@ run m = do
     putStrLn "-----------"
     putStrLn (disp r)
 
--- Complete the definition of this function. This should produce, for each proof `p`, all the _different_ sets of documents that can satisfy the evidence needed in p. AI!
 docs :: Proof -> Logic (Set DocumentType)
 docs = \case
-  _ -> mempty
+  ViaParent _ proof -> docs proof
+  And proof1 proof2 -> do
+    docs1 <- docs proof1
+    docs2 <- docs proof2
+    pure (docs1 <> docs2)
+  Evidence predicate -> predicateDocs predicate
+  where
+    predicateDocs :: Predicate -> Logic (Set DocumentType)
+    predicateDocs = \case
+      IsBritish p -> pure (Set.singleton (PassportCopy p)) <|> pure (Set.singleton (Passport p))
+      Settled p -> pure (Set.singleton (PassportCopy p))
+      BornBefore _ p -> pure (Set.singleton (BirthCertificate p))
+      BornInUK p -> pure (Set.singleton (BirthCertificate p))
+      BornAfter _ p -> pure (Set.singleton (BirthCertificate p))
+      Naturalized p -> pure (Set.singleton (NaturalizationCertificate p))
+      Years3LivingInUK p -> pure (Set.singleton (PassportCopy p))
+      IsBritOtbd p -> pure (Set.singleton (PassportCopy p)) <|> pure (Set.singleton (Passport p))
+      Married p1 p2 -> pure (Set.singleton (MarriageCertificate p1 p2))
