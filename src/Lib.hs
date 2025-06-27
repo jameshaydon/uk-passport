@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Logic
 import Control.Monad.State
+import Data.List (nub)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
@@ -51,7 +52,6 @@ instance Disp Predicate where
 
 data DocumentType
   = BirthCertificate Person
-  | PassportCopy Person
   | MarriageCertificate Person Person
   | NaturalizationCertificate Person
   | Passport Person
@@ -176,10 +176,15 @@ settled p = askRequired (Settled p)
 run :: M Proof -> IO ()
 run m = do
   res <- evalStateT (observeAllT m) Set.empty
-  putStrLn $ "Applicant has " <> show (length res) <> " proofs of britishness:\n\n"
+  putStrLn $ "Applicant has " <> show (length res) <> " proof(s) of britishness:\n\n"
   forM_ res $ \r -> do
     putStrLn "-----------"
     putStrLn (disp r)
+    putStrLn "\nPossible doc sets:"
+    let docSets = nub (observeAll (docs r))
+    forM_ docSets $ \ds -> print ds
+    putStrLn "These documents are unconditionally required:"
+    print (foldr1 Set.intersection docSets)
 
 docs :: Proof -> Logic (Set DocumentType)
 docs = \case
@@ -192,12 +197,12 @@ docs = \case
   where
     predicateDocs :: Predicate -> Logic (Set DocumentType)
     predicateDocs = \case
-      IsBritish p -> pure (Set.singleton (PassportCopy p)) <|> pure (Set.singleton (Passport p))
-      Settled p -> pure (Set.singleton (PassportCopy p))
+      IsBritish p -> pure (Set.singleton (Passport p)) <|> pure (Set.singleton (Passport p))
+      Settled p -> pure (Set.singleton (Passport p))
       BornBefore _ p -> pure (Set.singleton (BirthCertificate p))
       BornInUK p -> pure (Set.singleton (BirthCertificate p))
       BornAfter _ p -> pure (Set.singleton (BirthCertificate p))
       Naturalized p -> pure (Set.singleton (NaturalizationCertificate p))
-      Years3LivingInUK p -> pure (Set.singleton (PassportCopy p))
-      IsBritOtbd p -> pure (Set.singleton (PassportCopy p)) <|> pure (Set.singleton (Passport p))
+      Years3LivingInUK p -> pure (Set.singleton (Passport p))
+      IsBritOtbd p -> pure (Set.singleton (Passport p)) <|> pure (Set.singleton (Passport p))
       Married p1 p2 -> pure (Set.singleton (MarriageCertificate p1 p2))
