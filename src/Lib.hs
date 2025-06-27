@@ -74,11 +74,11 @@ instance Disp Proof where
     Evidence predicate -> disp predicate
     where
       indentLines prefix text = unlines $ map (prefix <>) $ lines text
-      indentBulletLines text = 
+      indentBulletLines text =
         let textLines = lines text
-        in case textLines of
-          [] -> ""
-          (firstLine:restLines) -> firstLine <> "\n" <> unlines (map ("  " <>) restLines)
+         in case textLines of
+              [] -> ""
+              (firstLine : restLines) -> firstLine <> "\n" <> unlines (map ("  " <>) restLines)
 
 type Claims = Set Predicate
 
@@ -181,8 +181,7 @@ run m = do
     putStrLn "-----------"
     putStrLn (disp r)
 
--- docs :: Predicate -> Logic DocumentType
--- docs = \case
---   IsParent (Parent _ p) p' | p == p' -> pure (BirthCertificate p)
---   BornInUK p -> pure (BirthCertificate p)
---   _ -> mempty
+-- Complete the definition of this function. This should produce, for each proof `p`, all the _different_ sets of documents that can satisfy the evidence needed in p. AI!
+docs :: Proof -> Logic (Set DocumentType)
+docs = \case
+  _ -> mempty
