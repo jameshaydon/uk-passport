@@ -64,12 +64,13 @@ data Proof
   | Evidence Predicate
   deriving (Show)
 
--- This instance needs to be modified. Displays can be multiple lines long, so indenting is not as easy as prefixing "  ". Second, when printing an `And`, we need to print both preceded by a bullet point, and indented. AI!
 instance Disp Proof where
   disp = \case
-    ViaParent parentType proof -> "Via " <> disp parentType <> ":\n    " <> disp proof
-    And proof1 proof2 -> disp proof1 <> " AND " <> disp proof2
+    ViaParent parentType proof -> "Via " <> disp parentType <> ":\n" <> indentLines "    " (disp proof)
+    And proof1 proof2 -> "• " <> indentLines "  " (disp proof1) <> "\n• " <> indentLines "  " (disp proof2)
     Evidence predicate -> disp predicate
+  where
+    indentLines prefix text = unlines $ map (prefix <>) $ lines text
 
 type Claims = Set Predicate
 
