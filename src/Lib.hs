@@ -9,6 +9,7 @@ import Control.Monad.State
 import Data.List (nub)
 import Data.Set (Set)
 import Data.Set qualified as Set
+import GHC.OldList (intercalate)
 
 class Disp a where
   disp :: a -> String
@@ -55,6 +56,7 @@ data DocumentType
   | MarriageCertificate Person Person
   | NaturalizationCertificate Person
   | Passport Person
+  | SettledStatus Person
   deriving (Show, Eq, Ord)
 
 instance Disp DocumentType where
@@ -63,9 +65,10 @@ instance Disp DocumentType where
     MarriageCertificate p1 p2 -> "Marriage certificate for " <> disp p1 <> " and " <> disp p2
     NaturalizationCertificate p -> "Naturalization certificate for " <> disp p
     Passport p -> "Passport for " <> disp p
+    SettledStatus p -> "Settled status document for " <> disp p
 
 data Proof
-  = ViaParent ParentType Proof
+  = ViaParent Person Proof
   | And Proof Proof
   | Evidence Predicate
   deriving (Show)
@@ -76,7 +79,7 @@ instance Disp Proof where
     And proof1 proof2 ->
       "• "
         <> indentBulletLines (disp proof1)
-        <> "\n• "
+        <> "• "
         <> indentBulletLines (disp proof2)
     Evidence predicate -> disp predicate
     where
@@ -145,14 +148,13 @@ askRequired p = check p >> pure (Evidence p)
 viaParent :: Person -> (Person -> M Proof) -> M Proof
 viaParent p cond =
   go Mother
-    <|> ( cut
-            (askRequired (BornAfter 2006 p))
-            (go Father)
-            (And <$> married (Parent Father p) (Parent Mother p) <*> go Father)
-        )
+    <|> cut
+      (askRequired (BornAfter 2006 p))
+      (go Father)
+      (And <$> married (Parent Father p) (Parent Mother p) <*> go Father)
   where
     go parent = do
-      ViaParent parent <$> cond (Parent parent p)
+      ViaParent (Parent parent p) <$> cond (Parent parent p)
 
 britBornAbroad :: Person -> M Proof
 britBornAbroad p =
@@ -183,18 +185,21 @@ settled p = askRequired (Settled p)
 run :: M Proof -> IO ()
 run m = do
   res <- evalStateT (observeAllT m) Set.empty
-  putStrLn $ "Applicant has " <> show (length res) <> " proof(s) of britishness:\n\n"
+  putStrLn $ "Applicant has " <> show (length res) <> " proof(s) of britishness:"
   forM_ res $ \r -> do
-    putStrLn "-----------"
+    putStrLn "\n-----------\n"
     putStrLn (disp r)
-    putStrLn "\nPossible doc sets:"
+    putStrLn "Possible doc sets:"
     let docSets = nub (observeAll (docs r))
-    forM_ docSets $ \ds -> print ds
-    putStrLn "These documents are unconditionally required:"
-    print (foldr1 Set.intersection docSets)
+    forM_ docSets $ \ds -> putStrLn ("- " <> dispDocSet ds)
+    putStrLn "\nThese documents are unconditionally required:"
+    putStrLn (dispDocSet (foldr1 Set.intersection docSets))
+  where
+    dispDocSet ds = intercalate ", " (disp <$> Set.toList ds)
 
 docs :: Proof -> Logic (Set DocumentType)
 docs = \case
+  ViaParent (Parent _ p) proof -> (<>) (Set.singleton (BirthCertificate p)) <$> docs proof
   ViaParent _ proof -> docs proof
   And proof1 proof2 -> do
     docs1 <- docs proof1
@@ -204,12 +209,12 @@ docs = \case
   where
     predicateDocs :: Predicate -> Logic (Set DocumentType)
     predicateDocs = \case
-      IsBritish p -> pure (Set.singleton (Passport p)) <|> pure (Set.singleton (Passport p))
-      Settled p -> pure (Set.singleton (Passport p))
+      IsBritish _ -> mempty
+      Settled p -> pure (Set.singleton (SettledStatus p))
       BornBefore _ p -> pure (Set.singleton (BirthCertificate p))
       BornInUK p -> pure (Set.singleton (BirthCertificate p))
       BornAfter _ p -> pure (Set.singleton (BirthCertificate p))
       Naturalized p -> pure (Set.singleton (NaturalizationCertificate p))
-      Years3LivingInUK p -> pure (Set.singleton (Passport p))
-      IsBritOtbd p -> pure (Set.singleton (Passport p)) <|> pure (Set.singleton (Passport p))
+      Years3LivingInUK _ -> mempty
+      IsBritOtbd _ -> mempty
       Married p1 p2 -> pure (Set.singleton (MarriageCertificate p1 p2))
