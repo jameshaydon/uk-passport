@@ -57,9 +57,12 @@ data DocumentType
   | Passport Person
   deriving (Show, Eq, Ord)
 
--- Implement this. AI!
 instance Disp DocumentType where
-  disp = _
+  disp = \case
+    BirthCertificate p -> "Birth certificate for " <> disp p
+    MarriageCertificate p1 p2 -> "Marriage certificate for " <> disp p1 <> " and " <> disp p2
+    NaturalizationCertificate p -> "Naturalization certificate for " <> disp p
+    Passport p -> "Passport for " <> disp p
 
 data Proof
   = ViaParent ParentType Proof
