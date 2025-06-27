@@ -63,18 +63,22 @@ data Proof
   | Evidence Predicate
   deriving (Show)
 
--- | There is a problem with the indenting of the lines with a bullet point. These get slightly offset. AI!
 instance Disp Proof where
   disp = \case
     ViaParent parentType proof -> "Via " <> disp parentType <> "'s britishness:\n" <> indentLines "  " (disp proof)
     And proof1 proof2 ->
       "• "
-        <> indentLines "  " (disp proof1)
+        <> indentBulletLines (disp proof1)
         <> "\n• "
-        <> indentLines "  " (disp proof2)
+        <> indentBulletLines (disp proof2)
     Evidence predicate -> disp predicate
     where
       indentLines prefix text = unlines $ map (prefix <>) $ lines text
+      indentBulletLines text = 
+        let textLines = lines text
+        in case textLines of
+          [] -> ""
+          (firstLine:restLines) -> firstLine <> "\n" <> unlines (map ("  " <>) restLines)
 
 type Claims = Set Predicate
 
