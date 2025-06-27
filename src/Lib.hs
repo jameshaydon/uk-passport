@@ -8,7 +8,6 @@ import Control.Monad.Logic
 import Control.Monad.State
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Text.Pretty.Simple (pPrint)
 
 class Disp a where
   disp :: a -> String
@@ -66,11 +65,11 @@ data Proof
 
 instance Disp Proof where
   disp = \case
-    ViaParent parentType proof -> "Via " <> disp parentType <> ":\n" <> indentLines "    " (disp proof)
+    ViaParent parentType proof -> "Via " <> disp parentType <> "'s britishness:\n" <> indentLines "  " (disp proof)
     And proof1 proof2 -> "• " <> indentLines "  " (disp proof1) <> "\n• " <> indentLines "  " (disp proof2)
     Evidence predicate -> disp predicate
-  where
-    indentLines prefix text = unlines $ map (prefix <>) $ lines text
+    where
+      indentLines prefix text = unlines $ map (prefix <>) $ lines text
 
 type Claims = Set Predicate
 
@@ -168,57 +167,13 @@ settled p = askRequired (Settled p)
 run :: M Proof -> IO ()
 run m = do
   res <- evalStateT (observeAllT m) Set.empty
-  putStrLn $ "Applicant has " <> show (length res) <> " proofs of britishness:"
-  forM_ res $ \r -> putStrLn (disp r)
+  putStrLn $ "Applicant has " <> show (length res) <> " proofs of britishness:\n\n"
+  forM_ res $ \r -> do
+    putStrLn "-----------"
+    putStrLn (disp r)
 
 -- docs :: Predicate -> Logic DocumentType
 -- docs = \case
 --   IsParent (Parent _ p) p' | p == p' -> pure (BirthCertificate p)
 --   BornInUK p -> pure (BirthCertificate p)
 --   _ -> mempty
-
-{-
--- British citizenship rules
-citizenshipRules :: [Rule]
-citizenshipRules =
-  [ Rule
-      "birth_in_uk_post_1983"
-      (IsBritish Applicant)
-      [ BornInUK Applicant,
-        BornAfter 1982 Applicant,
-        ParentBritish Applicant `or` ParentSettled Applicant
-      ],
-    Rule
-      "citizenship_by_descent"
-      (IsBritish Applicant)
-      [ BornBefore 1983 Applicant `or` BornOutsideUK Applicant,
-        ParentBritish Applicant
-      ],
-    Rule
-      "naturalization"
-      (IsBritish Applicant)
-      [ Naturalized Applicant,
-        ResidenceRequirement Applicant,
-        GoodCharacter Applicant
-      ],
-    -- Evidence rules - how predicates connect to documents
-    Rule
-      "birth_certificate_proves_uk_birth"
-      (BornInUK person)
-      [ HasDocument (BirthCertificate person),
-        DocumentHasProperty (BirthCertificate person) LocationInUK
-      ],
-    Rule
-      "birth_certificate_proves_date"
-      (BornBefore year person)
-      [ HasDocument (BirthCertificate person),
-        DocumentHasProperty (BirthCertificate person) (DateBefore year)
-      ],
-    Rule
-      "parent_passport_proves_british"
-      (ParentBritish Applicant)
-      [ HasDocument (PassportCopy (Father Applicant)),
-        DocumentHasProperty (PassportCopy (Father Applicant)) ValidPassport
-      ]
-  ]
--}
