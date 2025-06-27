@@ -1,0 +1,41 @@
+# Infinite: base/reverse
+[[check]]
+  id = "STAN-0101"
+  scope = "all"
+  type = "Exclude"
+
+# Infinite: base/length
+[[check]]
+  id = "STAN-0103"
+  scope = "all"
+  type = "Exclude"
+
+# Data types with non-strict fields
+[[check]]
+  id = "STAN-0206"
+  scope = "all"
+  type = "Exclude"
+
+# `foldMap` on `Maybe` is OK
+[[check]]
+  id = "STAN-0207"
+  scope = "all"
+  type = "Exclude"
+
+# Anti-pattern: Pattern matching on '_'
+[[check]]
+  id = "STAN-0213"
+  scope = "all"
+  type = "Exclude"
+
+# Infinite: base/sum
+[[check]]
+  id = "STAN-0105"
+  scope = "all"
+  type = "Exclude"
+
+# Allow partial functions in tests
+[[check]]
+  category = "Partial"
+  type = "Exclude"
+  directory = "test/"
