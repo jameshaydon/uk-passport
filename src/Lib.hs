@@ -60,19 +60,18 @@ type Claims = Map Predicate Knowledge
 
 type M a = StateT Claims (LogicT IO) a
 
--- | Conditional logic: if condition succeeds, combine with action
 ifThenElse :: (MonadLogic m) => m Proof -> m Proof -> m Proof -> m Proof
 ifThenElse c a = ifte c (\x -> And x <$> a)
 
--- | Try first option, fall back to second if first fails
+-- | Only explore the second branch if the first branch totally fails.
 orElse :: (MonadLogic m) => m a -> m a -> m a
 orElse a = ifte a pure
 
+-- | Require two things to be true.
 and :: M Proof -> M Proof -> M Proof
 and a b = And <$> a <*> b
 
--- | Ask a question about a predicate. If the answer is `SureYes`, this is
--- recorded for future questions.
+-- | Ask a question about a predicate. Caches the result.
 question :: Predicate -> M Knowledge
 question q = do
   s <- get
@@ -87,11 +86,11 @@ question q = do
       modify (Map.insert q k)
       pure k
 
--- | Ask about a predicate, failing if the user says no.
+-- | Ask about a predicate, continuing only if the user says "yes".
 check :: Predicate -> M ()
 check q = do
   k <- question q
-  guard (k == SureYes)
+  guard (k /= SureNo)
 
 -- | Require a predicate to be true and return it as evidence
 evidence :: Predicate -> M Proof
@@ -144,8 +143,7 @@ britBornAbroad p =
 -- | British otherwise than by descent (BOTD)
 britOtbd :: Person -> M Proof
 britOtbd p = do
-  a <- question (IsBritOtbd p)
-  guard (a /= SureNo)
+  check (IsBritOtbd p)
   evidence (Naturalised p) `orElse` britOtbdUkBorn `orElse` bornCrownService p
   where
     britOtbdUkBorn = evidence (BornInUK p) `and` britBornInUk p
