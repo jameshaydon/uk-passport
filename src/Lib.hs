@@ -133,13 +133,13 @@ viaParent p cond = viaMother <|> viaFather
       ifThenElse
         (evidence (BornAfter 2006 p))
         (via Father)
-        (and (married (Parent Father p) (Parent Mother p)) (via Father))
+        (married (Parent Father p) (Parent Mother p) `and` via Father)
 
 -- | British citizenship for those born abroad
 britBornAbroad :: Person -> M Proof
 britBornAbroad p =
   viaParent p $ \parent ->
-    britOtbd parent `orElse` and (brit parent) (evidence (Years3LivingInUK parent))
+    britOtbd parent `orElse` (brit parent `and` evidence (Years3LivingInUK parent))
 
 -- | British otherwise than by descent (BOTD)
 britOtbd :: Person -> M Proof
@@ -148,12 +148,12 @@ britOtbd p = do
   guard (a /= SureNo)
   evidence (Naturalised p) `orElse` britOtbdUkBorn `orElse` bornCrownService p
   where
-    britOtbdUkBorn = and (evidence (BornInUK p)) (britBornInUk p)
+    britOtbdUkBorn = evidence (BornInUK p) `and` britBornInUk p
 
 bornCrownService :: Person -> M Proof
 bornCrownService p = viaParent p $ \parent -> do
   check (CrownService parent)
-  and (brit parent) (evidence (CrownService parent))
+  brit parent `and` evidence (CrownService parent)
 
 -- | Establish that two people were married at time of birth
 married :: Person -> Person -> M Proof
