@@ -58,7 +58,7 @@ data Knowledge = SureYes | SureNo | Unsure
 
 type Claims = Map Predicate Knowledge
 
-type M a = StateT Claims (LogicT IO) a
+type M a = LogicT (StateT Claims IO) a
 
 ifThenElse :: (MonadLogic m) => m Proof -> m Proof -> m Proof -> m Proof
 ifThenElse c a = ifte c (\x -> And x <$> a)
@@ -86,11 +86,11 @@ question q = do
       modify (Map.insert q k)
       pure k
 
--- | Ask about a predicate, continuing only if the user says "yes".
+-- | Ask about a predicate, failing if the answer is a sure no.
 check :: Predicate -> M ()
 check q = do
-  k <- question q
-  guard (k /= SureNo)
+  answer <- question q
+  guard (answer /= SureNo)
 
 -- | Require a predicate to be true and return it as evidence
 evidence :: Predicate -> M Proof
@@ -168,7 +168,7 @@ settled p = evidence (Settled p)
 run :: M Proof -> IO ()
 run m = do
   hSetBuffering stdin LineBuffering
-  res <- observeAllT (evalStateT m Map.empty)
+  res <- evalStateT (observeAllT m) Map.empty
   putStrLn $ "Applicant has " <> show (length res) <> " proof(s) of britishness:"
   forM_ res $ \r -> do
     putStrLn "\n-----------\n"
